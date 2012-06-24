@@ -37,17 +37,36 @@ import tkinter.messagebox
 import tkinter as tk
 import os
 
-class SvnStartCommitHelperView(tk.Tk):
-    TITLE = 'SVN Start Commit Helper'
+class SvnStartCommitHelperConstants(object):
+    ERROR = 'Error'
+    MSGOPTIONS = 'Please select an option for %s!'
     NOSELECTION = '<noselection>'
+    TITLE = 'SVN Start Commit Helper'
+
+class SvnStartCommitHelperValidator(object):
+    optionCallbacks = []
+
+    def registerGetOptionCallback(self, callback, name):
+        self.optionCallbacks.append((callback, name))
+
+    def areOptionsSelected(self):
+        result = True
+        for callback, name in self.optionCallbacks:
+            result = result and not (callback() == SvnStartCommitHelperConstants.NOSELECTION)
+            if not result:
+                tk.messagebox.showerror(SvnStartCommitHelperConstants.ERROR,  SvnStartCommitHelperConstants.MSGOPTIONS % name)
+                break
+        return result
+
+class SvnStartCommitHelperView(tk.Tk):
     OPTIONSRISK = [
-        NOSELECTION,
+        SvnStartCommitHelperConstants.NOSELECTION,
         'Low',
         'Medium',
         'High'
     ]
     OPTIONSLINT = [
-        NOSELECTION,
+        SvnStartCommitHelperConstants.NOSELECTION,
         'Decrease',
         'Equal',
         'Increase'
@@ -64,7 +83,7 @@ class SvnStartCommitHelperView(tk.Tk):
     def __init__(self, callback):
         tk.Tk.__init__(self)
         self.callback = callback
-        self.title(self.TITLE)
+        self.title(SvnStartCommitHelperConstants.TITLE)
         self.minsize(300,50)
 
         tk.Label(self, text='Comment').grid(row=5, sticky=tk.E)
@@ -81,21 +100,18 @@ class SvnStartCommitHelperView(tk.Tk):
         self.reviewersText = tk.Entry(self, width=69)
         self.reviewersText.grid(row=15, column=1, columnspan=2)
         self.riskVar = tk.StringVar(self)
-        self.riskVar.set(self.NOSELECTION)
+        self.riskVar.set(SvnStartCommitHelperConstants.NOSELECTION)
         tk.OptionMenu(self, self.riskVar, *self.OPTIONSRISK).grid(row=20, column=1)
         self.jiraText = tk.Entry(self, width=16)
         self.jiraText.grid(row=25, column=1)
         self.lintVar = tk.StringVar(self)
-        self.lintVar.set(self.NOSELECTION)
+        self.lintVar.set(SvnStartCommitHelperConstants.NOSELECTION)
         tk.OptionMenu(self, self.lintVar, *self.OPTIONSLINT).grid(row=30, column=1)
         self.lintText = tk.Entry(self, width=50)
         self.lintText.grid(row=30, column=2)
 
         tk.Button(self, text="OK", command=self.callback).grid(row=5, column=90, rowspan=30, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
         self.protocol('WM_DELETE_WINDOW', self.callback)
-
-    def getNoSelection(self):
-        return self.NOSELECTION
 
     def getCommentText(self):
         return self.commentText.get().strip()
@@ -119,24 +135,20 @@ class SvnStartCommitHelperView(tk.Tk):
         return self.lintText.get().strip()
 
 class SvnStartCommitHelperController(object):
-    ERROR = 'Error'
-    MSGRISK = 'Please select an option for the risk level correlated to the commit!'
-    MSGLINT = 'Please select an option for Lint first!'
     view = None
+    validator = None
 
     def __init__(self):
         self.view = SvnStartCommitHelperView(self.checkExit)
+        self.validator = SvnStartCommitHelperValidator()
+        self.validator.registerGetOptionCallback(self.view.getRiskOption, 'the risk level correlated to the commit')
+        self.validator.registerGetOptionCallback(self.view.getLintOption, 'the Lint run')
         self.view.mainloop()
     
     def checkExit(self):
-        if self.view.getRiskOption() == self.view.getNoSelection():
-            tkinter.messagebox.showerror(self.ERROR, self.MSGRISK)
-        else:
-            if self.view.getLintOption() == self.view.getNoSelection():
-                tkinter.messagebox.showerror(self.ERROR, self.MSGLINT)
-            else:
-                self.writeSvnCommitMessage()
-                self.tearDown()
+        if self.validator.areOptionsSelected():
+            self.writeSvnCommitMessage()
+            self.tearDown()
 
     def writeSvnCommitMessage(self):
         f=open(tk.sys.argv[2], mode='w')
