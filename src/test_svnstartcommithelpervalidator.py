@@ -22,11 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 #
-# This section contains a list of people who've made non-trivial
-# contribution to the SVNStartCommitHelper project. Such contributors
-# who commit code to the project are encouraged to add their names
-# here. Please keep the list sorted by first names.
-#
 # @AUTHOR Oliver Merkel <merkel.oliver@web.de>
 #
 # Feel free to send contributions, pull requests, suggestions or
