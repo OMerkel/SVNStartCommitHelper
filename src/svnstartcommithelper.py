@@ -37,11 +37,18 @@ import tkinter.messagebox
 import tkinter as tk
 import os
 
-class SvnStartCommitHelperConstants(object):
+class CommitHelperConstants(object):
     ERROR = 'Error'
     MSGOPTIONS = 'Please select an option for %s!'
     NOSELECTION = '<noselection>'
     TITLE = 'SVN Start Commit Helper'
+    MESSAGEBODY = '''Brief: %s\n
+%s: %s\n
+Findings: %s\n
+Reviewer(s): %s\n
+Risk: %s\n
+Jira key is %s\n
+Lint (%s): %s\n'''
 
 class SvnStartCommitHelperValidator(object):
     optionCallbacks = []
@@ -52,21 +59,21 @@ class SvnStartCommitHelperValidator(object):
     def areOptionsSelected(self):
         result = True
         for callback, name in self.optionCallbacks:
-            result = result and not (callback() == SvnStartCommitHelperConstants.NOSELECTION)
+            result = result and not (callback() == CommitHelperConstants.NOSELECTION)
             if not result:
-                tk.messagebox.showerror(SvnStartCommitHelperConstants.ERROR,  SvnStartCommitHelperConstants.MSGOPTIONS % name)
+                tk.messagebox.showerror(CommitHelperConstants.ERROR,  CommitHelperConstants.MSGOPTIONS % name)
                 break
         return result
 
 class SvnStartCommitHelperView(tk.Tk):
     OPTIONSRISK = [
-        SvnStartCommitHelperConstants.NOSELECTION,
+        CommitHelperConstants.NOSELECTION,
         'Low',
         'Medium',
         'High'
     ]
     OPTIONSLINT = [
-        SvnStartCommitHelperConstants.NOSELECTION,
+        CommitHelperConstants.NOSELECTION,
         'Decrease',
         'Equal',
         'Increase'
@@ -83,7 +90,7 @@ class SvnStartCommitHelperView(tk.Tk):
     def __init__(self, callback):
         tk.Tk.__init__(self)
         self.callback = callback
-        self.title(SvnStartCommitHelperConstants.TITLE)
+        self.title(CommitHelperConstants.TITLE)
         self.minsize(300,50)
 
         descriptionFrame = tk.Frame(self, bd=1, relief=tk.SUNKEN)
@@ -115,12 +122,12 @@ class SvnStartCommitHelperView(tk.Tk):
         self.reviewersText = tk.Entry(self, width=69)
         self.reviewersText.grid(row=15, column=1, columnspan=3, sticky=tk.W+tk.E)
         self.riskVar = tk.StringVar(self)
-        self.riskVar.set(SvnStartCommitHelperConstants.NOSELECTION)
+        self.riskVar.set(CommitHelperConstants.NOSELECTION)
         tk.OptionMenu(self, self.riskVar, *self.OPTIONSRISK).grid(row=20, column=1)
         self.jiraText = tk.Entry(self, width=16)
         self.jiraText.grid(row=25, column=1)
         self.lintVar = tk.StringVar(self)
-        self.lintVar.set(SvnStartCommitHelperConstants.NOSELECTION)
+        self.lintVar.set(CommitHelperConstants.NOSELECTION)
         tk.OptionMenu(self, self.lintVar, *self.OPTIONSLINT).grid(row=30, column=1)
         self.lintText = tk.Entry(self, width=50)
         self.lintText.grid(row=30, column=2, sticky=tk.W+tk.E)
@@ -155,8 +162,10 @@ class SvnStartCommitHelperView(tk.Tk):
 class SvnStartCommitHelperController(object):
     view = None
     validator = None
+    argv = None
 
-    def __init__(self):
+    def __init__(self, argv):
+        self.argv = tk.sys.argv
         self.view = SvnStartCommitHelperView(self.checkExit)
         self.validator = SvnStartCommitHelperValidator()
         self.validator.registerGetOptionCallback(self.view.getRiskOption, 'the risk level correlated to the commit')
@@ -168,21 +177,23 @@ class SvnStartCommitHelperController(object):
             self.writeSvnCommitMessage()
             self.tearDown()
 
+    def getMessage(self):
+        return ( self.view.getBriefText(), os.getlogin(), self.view.getCommentText(),
+            self.view.getFindingsText(), self.view.getReviewersText(),
+            self.view.getRiskOption(), self.view.getJiraText(),
+            self.view.getLintOption(), self.view.getLintText() )
+
     def writeSvnCommitMessage(self):
-        f=open(tk.sys.argv[2], mode='w')
-        f.write('Brief: %s\n\n' % self.view.getBriefText())
-        f.write('%s: %s\n\n' % (os.getlogin(), self.view.getCommentText()))
-        f.write('Findings: %s\n\n' % self.view.getFindingsText())
-        f.write('Reviewer(s): %s\n\n' % self.view.getReviewersText())
-        f.write('Risk: %s\n\n' % self.view.getRiskOption())
-        f.write('Jira key is %s\n\n' % self.view.getJiraText())
-        f.write('Lint (%s): %s\n' % (self.view.getLintOption(), self.view.getLintText()))
+        message = CommitHelperConstants.MESSAGEBODY % self.getMessage()
+        if 4==len(self.argv):
+            open(tk.sys.argv[2], mode='w').write(message)
+        else:
+            print(message)
     
     def tearDown(self):
         self.view.quit()
         self.view.destroy()
 
 if __name__=='__main__':
-    if 4==len(tk.sys.argv):
-        controller = SvnStartCommitHelperController()
+    controller = SvnStartCommitHelperController(tk.sys.argv)
 
