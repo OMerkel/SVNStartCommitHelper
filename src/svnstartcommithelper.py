@@ -36,19 +36,31 @@ THE SOFTWARE.
 import tkinter.messagebox
 import tkinter as tk
 import os
+import xml.dom.minidom as dom
 
 class CommitHelperConstants(object):
     ERROR = 'Error'
     MSGOPTIONS = 'Please select an option for %s!'
     NOSELECTION = '<noselection>'
     TITLE = 'SVN Start Commit Helper'
-    MESSAGEBODY = '''Brief: %s\n
-%s: %s\n
-Findings: %s\n
-Reviewer(s): %s\n
-Risk: %s\n
-Jira key is %s\n
-Lint (%s): %s\n'''
+    DEFAULTCONFIG = '''\
+<config>
+<messagebody>Brief: %s
+
+%s: %s
+
+Findings: %s
+
+Reviewer(s): %s
+
+Risk: %s
+
+Jira key is %s
+
+Lint (%s): %s</messagebody>
+<history/>
+</config>
+'''
 
 class SvnStartCommitHelperValidator(object):
     optionCallbacks = []
@@ -61,7 +73,7 @@ class SvnStartCommitHelperValidator(object):
         for callback, name in self.optionCallbacks:
             result = result and not (callback() == CommitHelperConstants.NOSELECTION)
             if not result:
-                tk.messagebox.showerror(CommitHelperConstants.ERROR,  CommitHelperConstants.MSGOPTIONS % name)
+                tk.messagebox.showerror(CommitHelperConstants.ERROR, CommitHelperConstants.MSGOPTIONS % name)
                 break
         return result
 
@@ -159,13 +171,33 @@ class SvnStartCommitHelperView(tk.Tk):
     def getLintText(self):
         return self.lintText.get().strip()
 
+class SvnStartCommitHelperModel(object):
+    dom = None
+
+    def __init__(self):
+        self.dom = dom.parseString(CommitHelperConstants.DEFAULTCONFIG)
+
+    def getText(self, nodelist):
+        rc = []
+        for node in nodelist:
+            if node.TEXT_NODE == node.nodeType:
+                rc.append(node.data)
+        return ''.join(rc)
+
+    def getMessageBody(self):
+        messageElement = self.dom.getElementsByTagName('messagebody')[0]
+        bodyText = self.getText(messageElement.childNodes)
+        return bodyText
+    
 class SvnStartCommitHelperController(object):
+    model = None
     view = None
     validator = None
     argv = None
 
     def __init__(self, argv):
         self.argv = tk.sys.argv
+        self.model = SvnStartCommitHelperModel()
         self.view = SvnStartCommitHelperView(self.checkExit)
         self.validator = SvnStartCommitHelperValidator()
         self.validator.registerGetOptionCallback(self.view.getRiskOption, 'the risk level correlated to the commit')
@@ -184,7 +216,7 @@ class SvnStartCommitHelperController(object):
             self.view.getLintOption(), self.view.getLintText() )
 
     def writeSvnCommitMessage(self):
-        message = CommitHelperConstants.MESSAGEBODY % self.getMessage()
+        message = self.model.getMessageBody() % self.getMessage()
         if 4==len(self.argv):
             open(tk.sys.argv[2], mode='w').write(message)
         else:
