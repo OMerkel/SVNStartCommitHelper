@@ -37,13 +37,27 @@ import tkinter.messagebox
 import tkinter as tk
 import tkinter.ttk as ttk
 import os
+import os.path
 import xml.dom.minidom as dom
 
 class CommitHelperConstants(object):
+    AVOIDCONFIGFILE = False
     ERROR = 'Error'
+    INFO = 'Information'
     MSGOPTIONS = 'Please select an option for %s!'
+    MSGFILESIZE = 'Could not determine file size of %s!'
+    MSGPARSEERROR = 'XML file could not be parsed!'
+    MSGFILEEMPTY = 'XML file has size 0.'
+    MSGCANTWRITECONFIG = 'Could not open %s for writing default config.'
+    MSGMAKECONFIGPATH = 'Creating directory %s now.'
+    MSGCREATECONFIGFILE = 'Creating config file %s.'
+    MSGEMPTYHISTORY = 'Commit message history is still empty.'
+    MSGERRORWRITINGFILE = 'Could not open %s for writing config.'
     NOSELECTION = '<noselection>'
     TITLE = 'SVN Start Commit Helper'
+    MAXHISTORYSIZE = 20
+    CONFIGDIR = '.svnsch'
+    CONFIGFILE = 'svnsch.conf'
     DEFAULTCONFIG = '''\
 <config>
 <messagebody>Brief: %s
@@ -65,18 +79,18 @@ Lint (%s): %s</messagebody>
 <comment>Updated the LOQ with information from weekly status telephone conference.</comment>
 <findings>Spread sheet is outdated.</findings>
 <reviewers>Matt</reviewers>
-<risk option="1" />
+<risk option="Low" />
 <jirakey>PAN-176</jirakey>
-<lint option="4">Not applicable.</lint>
+<lint option="NA">Not applicable.</lint>
 </template>
 <template>
 <brief>master.xml update.</brief>
 <comment>Added new IDs in master.xml.</comment>
 <findings>Message IDs missing since interface changed.</findings>
 <reviewers>Hank</reviewers>
-<risk option="2" />
+<risk option="Medium" />
 <jirakey>PAN-177</jirakey>
-<lint option="4">Not applicable.</lint>
+<lint option="NA">Not applicable.</lint>
 </template>
 </templates>
 <history/>
@@ -166,9 +180,16 @@ class SvnStartCommitHelperView(tk.Tk):
         self.lintText = tk.Entry(self, width=50, textvariable=self.lintTextVar)
         self.lintText.grid(row=30, column=2, sticky=tk.W+tk.E)
 
-        tk.Button(self, text="Template...", command=self.templateCallback).grid(row=0, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
-        tk.Button(self, text="History...", command=self.historyCallback).grid(row=5, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
-        tk.Button(self, text="OK", command=self.okCallback).grid(row=10, column=90, rowspan=25, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
+        templateButton = tk.Button(self, text="Template...", command=self.templateCallback)
+        templateButton.grid(row=0, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S,
+            padx=5, pady=5)
+        if not CommitHelperConstants.AVOIDCONFIGFILE:
+            historyButton = tk.Button(self, text="History...", command=self.historyCallback)
+            historyButton.grid(row=5, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S,
+                padx=5, pady=5)
+        okButton = tk.Button(self, text="OK", command=self.okCallback)
+        okButton.grid(row=10, column=90, rowspan=25, sticky=tk.W+tk.E+tk.N+tk.S,
+            padx=5, pady=5)
         self.protocol('WM_DELETE_WINDOW', self.okCallback)
 
     def getBriefText(self):
@@ -217,7 +238,8 @@ class SvnStartCommitHelperView(tk.Tk):
             treeScrollbar.config(command=self.tree.yview)
             self.tree.config(yscrollcommand=treeScrollbar.set)
 
-            tk.Button(listboxDialog, text="OK", command=self.listSelected).grid(row=0, column=90, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
+            okButton = tk.Button(listboxDialog, text="OK", command=self.listSelected)
+            okButton.grid(row=0, column=90, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
 
             for entry in entries:
                 self.tree.insert('', tk.END, values=entry[0:3])
@@ -234,16 +256,15 @@ class SvnStartCommitHelperView(tk.Tk):
         self.findingsText.delete('1.0', tk.END)
         self.findingsText.insert(tk.END, entry[2])
         self.reviewersVar.set(entry[3])
-        self.riskVar.set(self.OPTIONSRISK[int(entry[4])])
+        self.riskVar.set(entry[4])
         self.jiraVar.set(entry[5])
-        self.lintVar.set(self.OPTIONSLINT[int(entry[6])])
+        self.lintVar.set(entry[6])
         self.lintTextVar.set(entry[7])
 
 class SvnStartCommitHelperModel(object):
-    dom = None
 
     def __init__(self):
-        self.dom = dom.parseString(CommitHelperConstants.DEFAULTCONFIG)
+        pass
 
     def getText(self, nodelist):
         rc = []
@@ -253,30 +274,98 @@ class SvnStartCommitHelperModel(object):
         return ''.join(rc)
 
     def getMessageBody(self):
-        messageElement = self.dom.getElementsByTagName('messagebody')[0]
+        dom = self.getDom()
+        messageElement = dom.getElementsByTagName('messagebody')[0]
         bodyText = self.getText(messageElement.childNodes)
         return bodyText
 
-    def getTemplates(self):
-        rc = []
-        templates = self.dom.getElementsByTagName('template')
-        for template in templates:
-            brief = self.getText(template.getElementsByTagName('brief')[0].childNodes)
-            comment = self.getText(template.getElementsByTagName('comment')[0].childNodes)
-            findings = self.getText(template.getElementsByTagName('findings')[0].childNodes)
-            reviewers = self.getText(template.getElementsByTagName('reviewers')[0].childNodes)
-            risk = template.getElementsByTagName('risk')[0].getAttribute('option')
-            jirakey = self.getText(template.getElementsByTagName('jirakey')[0].childNodes)
-            element = template.getElementsByTagName('lint')[0]
+    def getItem(self, node):
+            brief = self.getText(node.getElementsByTagName('brief')[0].childNodes)
+            comment = self.getText(node.getElementsByTagName('comment')[0].childNodes)
+            findings = self.getText(node.getElementsByTagName('findings')[0].childNodes)
+            reviewers = self.getText(node.getElementsByTagName('reviewers')[0].childNodes)
+            risk = node.getElementsByTagName('risk')[0].getAttribute('option')
+            jirakey = self.getText(node.getElementsByTagName('jirakey')[0].childNodes)
+            element = node.getElementsByTagName('lint')[0]
             lintOption = element.getAttribute('option')
             lintText = self.getText(element.childNodes)
-            rcElement = ( brief, comment, findings, reviewers,
-                          risk, jirakey, lintOption, lintText )
-            rc.append(rcElement)
+            return ( brief, comment, findings, reviewers,
+                risk, jirakey, lintOption, lintText )
+
+    def getDomFromFile(self):
+        rc = None
+        homePath = os.path.expanduser('~')
+        configPath = os.path.join(homePath, CommitHelperConstants.CONFIGDIR)
+        configFile = os.path.join(configPath, CommitHelperConstants.CONFIGFILE)
+        if not configPath is None:
+            if not os.path.exists(configPath):
+                tk.messagebox.showinfo(CommitHelperConstants.INFO,
+                    CommitHelperConstants.MSGMAKECONFIGPATH % configPath)
+                os.chdir(homePath)
+                os.mkdir(CommitHelperConstants.CONFIGDIR)
+            if os.path.exists(configPath) and os.path.isdir(configPath):
+                if os.path.exists(configFile) and os.path.isfile(configFile):
+                    try:
+                        file = open(configFile, 'r')
+                    except IOError:
+                        tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                            CommitHelperConstants.MSGFILESIZE % configFile)
+                    else:
+                        size = os.fstat(file.fileno()).st_size
+                        if 0 < size:
+                            try:
+                                rc = dom.parse(file)
+                            except IOError:
+                                tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                                    CommitHelperConstants.MSGPARSEERROR)
+                        else:
+                            tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                                CommitHelperConstants.MSGFILEEMPTY)
+                        file.close()
+                else:
+                    tk.messagebox.showinfo(CommitHelperConstants.INFO,
+                        CommitHelperConstants.MSGCREATECONFIGFILE % configFile)
+                    try:
+                        file = open(configFile, 'w')
+                    except IOError:
+                        tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                            CommitHelperConstants.MSGCANTWRITECONFIG  % configFile)
+                    else:
+                        file.write(CommitHelperConstants.DEFAULTCONFIG)
+                        file.flush()
+                        file.close()
+        return rc
+
+    def getDom(self):
+        rc = None
+        internalDom = dom.parseString(CommitHelperConstants.DEFAULTCONFIG)
+        if CommitHelperConstants.AVOIDCONFIGFILE:
+            rc = internalDom
+        else:
+            rc = self.getDomFromFile()
+            if None == rc:
+                rc = internalDom
+        return rc
+
+    def getTemplates(self):
+        rc = []
+        dom = self.getDom()
+        templates = dom.getElementsByTagName('template')
+        for template in templates:
+            rc.append(self.getItem(template))
         return rc
 
     def getHistory(self):
         rc = []
+        dom = self.getDom()
+        historyElement = dom.getElementsByTagName('history')[0]
+        items = historyElement.getElementsByTagName('item')
+        if [] != items:
+            for item in items:
+                rc.append(self.getItem(item))
+        else:
+            tk.messagebox.showinfo(CommitHelperConstants.INFO,
+                CommitHelperConstants.MSGEMPTYHISTORY)
         return rc
 
 class SvnStartCommitHelperController(object):
@@ -294,6 +383,7 @@ class SvnStartCommitHelperController(object):
     def checkExit(self):
         if self.validator.areOptionsSelected():
             self.writeSvnCommitMessage()
+            self.updateHistory()
             self.tearDown()
 
     def getTemplate(self):
@@ -313,6 +403,73 @@ class SvnStartCommitHelperController(object):
             self.view.getRiskOption(), self.view.getJiraText(),
             self.view.getLintOption(), self.view.getLintText() )
 
+    def sameInHistory(self, message, items):
+        rc = False
+        for item in items:
+            historyMessage = list(self.model.getItem(item))
+            rc = historyMessage == message
+            if rc:
+                break
+        return rc
+
+    def appendMessage(self, dom, message):
+        historyElement = dom.getElementsByTagName('history')[0]
+        item = dom.createElement('item')
+        brief = dom.createElement('brief')
+        briefText = dom.createTextNode(message[0])
+        comment = dom.createElement('comment')
+        commentText = dom.createTextNode(message[1])
+        findings = dom.createElement('findings')
+        findingsText = dom.createTextNode(message[2])
+        reviewers = dom.createElement('reviewers')
+        reviewersText = dom.createTextNode(message[3])
+        risk = dom.createElement('risk')
+        risk.setAttribute('option', message[4])
+        jirakey = dom.createElement('jirakey')
+        jirakeyText = dom.createTextNode(message[5])
+        lint = dom.createElement('lint')
+        lint.setAttribute('option', message[6])
+        lintText = dom.createTextNode(message[7])
+        brief.appendChild(briefText)
+        comment.appendChild(commentText)
+        findings.appendChild(findingsText)
+        reviewers.appendChild(reviewersText)
+        jirakey.appendChild(jirakeyText)
+        lint.appendChild(lintText)
+        item.appendChild(brief)
+        item.appendChild(comment)
+        item.appendChild(findings)
+        item.appendChild(reviewers)
+        item.appendChild(risk)
+        item.appendChild(jirakey)
+        item.appendChild(lint)
+        historyElement.appendChild(item)
+        items = historyElement.getElementsByTagName('item')
+        while len(items) > CommitHelperConstants.MAXHISTORYSIZE:
+            historyElement.removeChild(items[0])
+            items = historyElement.getElementsByTagName('item')
+        homePath = os.path.expanduser('~')
+        configPath = os.path.join(homePath, CommitHelperConstants.CONFIGDIR)
+        configFile = os.path.join(configPath, CommitHelperConstants.CONFIGFILE)
+        try:
+            config = open(configFile, 'w')
+            config.write(dom.toxml())
+            config.flush()
+            config.close()
+        except IOError:
+            tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                CommitHelperConstants.MSGERRORWRITINGFILE % configFile)
+
+    def updateHistory(self):
+        if not CommitHelperConstants.AVOIDCONFIGFILE:
+            message = list(self.getMessage())
+            del message[1:2]
+            dom = self.model.getDom()
+            historyElement = dom.getElementsByTagName('history')[0]
+            items = historyElement.getElementsByTagName('item')
+            if not self.sameInHistory(message, items):
+                self.appendMessage(dom, message)
+
     def writeSvnCommitMessage(self):
         message = self.model.getMessageBody() % self.getMessage()
         if 4==len(self.argv):
@@ -324,5 +481,5 @@ class SvnStartCommitHelperController(object):
         self.view.quit()
         self.view.destroy()
 
-if __name__=='__main__':
-    controller = SvnStartCommitHelperController(tk.sys.argv)
+if '__main__'==__name__:
+    SvnStartCommitHelperController(tk.sys.argv)
