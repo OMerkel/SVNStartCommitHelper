@@ -39,6 +39,7 @@ import tkinter.ttk as ttk
 import os
 import os.path
 import xml.dom.minidom as dom
+from string import Template
 
 class CommitHelperConstants(object):
     AVOIDCONFIGFILE = False
@@ -58,44 +59,82 @@ class CommitHelperConstants(object):
     MAXHISTORYSIZE = 20
     CONFIGDIR = '.svnsch'
     CONFIGFILE = 'svnsch.conf'
-    DEFAULTCONFIG = '''\
-<config>
-<messagebody>Brief: %s
+    XMLTAGCONFIG = 'config'
+    XMLTAGMESSAGEBODY = 'messagebody'
+    XMLTAGTEMPLATES = 'templates'
+    XMLTAGTEMPLATE = 'template'
+    XMLTAGBRIEF = 'brief'
+    XMLTAGCOMMENT = 'comment'
+    XMLTAGFINDINGS = 'findings'
+    XMLTAGREVIEWERS = 'reviewers'
+    XMLTAGRISK = 'risk'
+    XMLTAGJIRAKEY = 'jirakey'
+    XMLTAGLINT = 'lint'
+    XMLTAGHISTORY = 'history'
+    XMLTAGITEM = 'item'
+    XMLATTRIBUTEOPTION = 'option'
+    DEFAULTCONFIGTEMPLATE = Template('''\
+<$tagroot>
+<$tagmessagebody>Brief: $brief
 
-%s: %s
+$user: $comment
 
-Findings: %s
+Findings: $findings
 
-Reviewer(s): %s
+Reviewer(s): $reviewers
 
-Risk: %s
+Risk: $riskoption
 
-Jira key is %s
+Jira key is $jirakey
 
-Lint (%s): %s</messagebody>
-<templates>
-<template>
-<brief>Weekly update of list of open questions.</brief>
-<comment>Updated the LOQ with information from weekly status telephone conference.</comment>
-<findings>Spread sheet is outdated.</findings>
-<reviewers>Matt</reviewers>
-<risk option="Low" />
-<jirakey>PAN-176</jirakey>
-<lint option="NA">Not applicable.</lint>
-</template>
-<template>
-<brief>master.xml update.</brief>
-<comment>Added new IDs in master.xml.</comment>
-<findings>Message IDs missing since interface changed.</findings>
-<reviewers>Hank</reviewers>
-<risk option="Medium" />
-<jirakey>PAN-177</jirakey>
-<lint option="NA">Not applicable.</lint>
-</template>
-</templates>
-<history/>
-</config>
-'''
+Lint ($lintoption): $lint</$tagmessagebody>
+<$tagtemplates>
+<$tagtemplate>
+<$tagbrief>Weekly update of list of open questions.</$tagbrief>
+<$tagcomment>Updated the LOQ with information from weekly status telephone conference.</$tagcomment>
+<$tagfindings>Spread sheet is outdated.</$tagfindings>
+<$tagreviewers>Matt</$tagreviewers>
+<$tagrisk $attributeoption="Low" />
+<$tagjirakey>PAN-176</$tagjirakey>
+<$taglint $attributeoption="NA">Not applicable.</$taglint>
+</$tagtemplate>
+<$tagtemplate>
+<$tagbrief>master.xml update.</$tagbrief>
+<$tagcomment>Added new IDs in master.xml.</$tagcomment>
+<$tagfindings>Message IDs missing since interface changed.</$tagfindings>
+<$tagreviewers>Hank</$tagreviewers>
+<$tagrisk $attributeoption="Medium" />
+<$tagjirakey>PAN-177</$tagjirakey>
+<$taglint $attributeoption="NA">Not applicable.</$taglint>
+</$tagtemplate>
+</$tagtemplates>
+<$taghistory/>
+</$tagroot>
+''')
+    DEFAULTCONFIG = DEFAULTCONFIGTEMPLATE.substitute(
+        tagroot=XMLTAGCONFIG,
+        tagmessagebody=XMLTAGMESSAGEBODY,
+        tagtemplates=XMLTAGTEMPLATES,
+        tagtemplate=XMLTAGTEMPLATE,
+        tagbrief=XMLTAGBRIEF,
+        tagcomment=XMLTAGCOMMENT,
+        tagfindings=XMLTAGFINDINGS,
+        tagreviewers=XMLTAGREVIEWERS,
+        tagrisk=XMLTAGRISK,
+        tagjirakey=XMLTAGJIRAKEY,
+        taglint=XMLTAGLINT,
+        taghistory=XMLTAGHISTORY,
+        attributeoption=XMLATTRIBUTEOPTION,
+        brief='$brief',
+        user='$user',
+        comment='$comment',
+        findings='$findings',
+        reviewers='$reviewers',
+        riskoption='$riskoption',
+        jirakey='$jirakey',
+        lintoption='$lintoption',
+        lint='$lint'
+    )
 
 class SvnStartCommitHelperValidator(object):
     optionCallbacks = []
@@ -275,19 +314,19 @@ class SvnStartCommitHelperModel(object):
 
     def getMessageBody(self):
         dom = self.getDom()
-        messageElement = dom.getElementsByTagName('messagebody')[0]
+        messageElement = dom.getElementsByTagName(CommitHelperConstants.XMLTAGMESSAGEBODY)[0]
         bodyText = self.getText(messageElement.childNodes)
         return bodyText
 
     def getItem(self, node):
-            brief = self.getText(node.getElementsByTagName('brief')[0].childNodes)
-            comment = self.getText(node.getElementsByTagName('comment')[0].childNodes)
-            findings = self.getText(node.getElementsByTagName('findings')[0].childNodes)
-            reviewers = self.getText(node.getElementsByTagName('reviewers')[0].childNodes)
-            risk = node.getElementsByTagName('risk')[0].getAttribute('option')
-            jirakey = self.getText(node.getElementsByTagName('jirakey')[0].childNodes)
-            element = node.getElementsByTagName('lint')[0]
-            lintOption = element.getAttribute('option')
+            brief = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGBRIEF)[0].childNodes)
+            comment = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGCOMMENT)[0].childNodes)
+            findings = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGFINDINGS)[0].childNodes)
+            reviewers = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGREVIEWERS)[0].childNodes)
+            risk = node.getElementsByTagName(CommitHelperConstants.XMLTAGRISK)[0].getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
+            jirakey = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGJIRAKEY)[0].childNodes)
+            element = node.getElementsByTagName(CommitHelperConstants.XMLTAGLINT)[0]
+            lintOption = element.getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
             lintText = self.getText(element.childNodes)
             return ( brief, comment, findings, reviewers,
                 risk, jirakey, lintOption, lintText )
@@ -350,7 +389,7 @@ class SvnStartCommitHelperModel(object):
     def getTemplates(self):
         rc = []
         dom = self.getDom()
-        templates = dom.getElementsByTagName('template')
+        templates = dom.getElementsByTagName(CommitHelperConstants.XMLTAGTEMPLATE)
         for template in templates:
             rc.append(self.getItem(template))
         return rc
@@ -358,8 +397,8 @@ class SvnStartCommitHelperModel(object):
     def getHistory(self):
         rc = []
         dom = self.getDom()
-        historyElement = dom.getElementsByTagName('history')[0]
-        items = historyElement.getElementsByTagName('item')
+        historyElement = dom.getElementsByTagName(CommitHelperConstants.XMLTAGHISTORY)[0]
+        items = historyElement.getElementsByTagName(CommitHelperConstants.XMLTAGITEM)
         if [] != items:
             for item in items:
                 rc.append(self.getItem(item))
@@ -413,22 +452,22 @@ class SvnStartCommitHelperController(object):
         return rc
 
     def appendMessage(self, dom, message):
-        historyElement = dom.getElementsByTagName('history')[0]
-        item = dom.createElement('item')
-        brief = dom.createElement('brief')
+        historyElement = dom.getElementsByTagName(CommitHelperConstants.XMLTAGHISTORY)[0]
+        item = dom.createElement(CommitHelperConstants.XMLTAGITEM)
+        brief = dom.createElement(CommitHelperConstants.XMLTAGBRIEF)
         briefText = dom.createTextNode(message[0])
-        comment = dom.createElement('comment')
+        comment = dom.createElement(CommitHelperConstants.XMLTAGCOMMENT)
         commentText = dom.createTextNode(message[1])
-        findings = dom.createElement('findings')
+        findings = dom.createElement(CommitHelperConstants.XMLTAGFINDINGS)
         findingsText = dom.createTextNode(message[2])
-        reviewers = dom.createElement('reviewers')
+        reviewers = dom.createElement(CommitHelperConstants.XMLTAGREVIEWERS)
         reviewersText = dom.createTextNode(message[3])
-        risk = dom.createElement('risk')
-        risk.setAttribute('option', message[4])
-        jirakey = dom.createElement('jirakey')
+        risk = dom.createElement(CommitHelperConstants.XMLTAGRISK)
+        risk.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[4])
+        jirakey = dom.createElement(CommitHelperConstants.XMLTAGJIRAKEY)
         jirakeyText = dom.createTextNode(message[5])
-        lint = dom.createElement('lint')
-        lint.setAttribute('option', message[6])
+        lint = dom.createElement(CommitHelperConstants.XMLTAGLINT)
+        lint.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[6])
         lintText = dom.createTextNode(message[7])
         brief.appendChild(briefText)
         comment.appendChild(commentText)
@@ -444,10 +483,10 @@ class SvnStartCommitHelperController(object):
         item.appendChild(jirakey)
         item.appendChild(lint)
         historyElement.appendChild(item)
-        items = historyElement.getElementsByTagName('item')
+        items = historyElement.getElementsByTagName(CommitHelperConstants.XMLTAGITEM)
         while len(items) > CommitHelperConstants.MAXHISTORYSIZE:
             historyElement.removeChild(items[0])
-            items = historyElement.getElementsByTagName('item')
+            items = historyElement.getElementsByTagName(CommitHelperConstants.XMLTAGITEM)
         homePath = os.path.expanduser('~')
         configPath = os.path.join(homePath, CommitHelperConstants.CONFIGDIR)
         configFile = os.path.join(configPath, CommitHelperConstants.CONFIGFILE)
@@ -465,17 +504,28 @@ class SvnStartCommitHelperController(object):
             message = list(self.getMessage())
             del message[1:2]
             dom = self.model.getDom()
-            historyElement = dom.getElementsByTagName('history')[0]
-            items = historyElement.getElementsByTagName('item')
+            historyElement = dom.getElementsByTagName(CommitHelperConstants.XMLTAGHISTORY)[0]
+            items = historyElement.getElementsByTagName(CommitHelperConstants.XMLTAGITEM)
             if not self.sameInHistory(message, items):
                 self.appendMessage(dom, message)
 
     def writeSvnCommitMessage(self):
-        message = self.model.getMessageBody() % self.getMessage()
+        messageTemplate = Template(self.model.getMessageBody())
+        message = self.getMessage()
+        messageText = messageTemplate.substitute(
+            brief=message[0],
+            user=message[1],
+            comment=message[2],
+            findings=message[3],
+            reviewers=message[4],
+            riskoption=message[5],
+            jirakey=message[6],
+            lintoption=message[7],
+            lint=message[8])
         if 4==len(self.argv):
-            open(tk.sys.argv[2], mode='w').write(message)
+            open(tk.sys.argv[2], mode='w').write(messageText)
         else:
-            print(message)
+            print(messageText)
 
     def tearDown(self):
         self.view.quit()

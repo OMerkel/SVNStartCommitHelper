@@ -50,6 +50,11 @@ select 'Hook Scripts', then 'Add...' the script using the settings shown.
 In the command line text field adapt the values according to your
 valid locations.
 
+Migrating from previous version
+-------------------------------
+
+If migrating to SVNStartCommitHelper-0.1-SNAPSHOT121019.zip and above from previous versions then please be aware that the format of the messagebody template in .svnsch/svnsch.conf has changed.
+
 External links
 --------------
 
