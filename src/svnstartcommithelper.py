@@ -43,6 +43,7 @@ from string import Template
 
 class CommitHelperConstants(object):
     AVOIDCONFIGFILE = False
+    CONFIGFILEVERSION = '1.0'
     ERROR = 'Error'
     INFO = 'Information'
     MSGOPTIONS = 'Please select an option for %s!'
@@ -54,6 +55,7 @@ class CommitHelperConstants(object):
     MSGCREATECONFIGFILE = 'Creating config file %s.'
     MSGEMPTYHISTORY = 'Commit message history is still empty.'
     MSGERRORWRITINGFILE = 'Could not open %s for writing config.'
+    MSGCONFIGVERSIONMISMATCH = 'Config file version in file %s does not match.'
     NOSELECTION = '<noselection>'
     TITLE = 'SVN Start Commit Helper'
     MAXHISTORYSIZE = 20
@@ -73,9 +75,10 @@ class CommitHelperConstants(object):
     XMLTAGLINT = 'lint'
     XMLTAGHISTORY = 'history'
     XMLTAGITEM = 'item'
+    XMLATTRIBUTEVERSION = 'version'
     XMLATTRIBUTEOPTION = 'option'
     DEFAULTCONFIGTEMPLATE = Template('''\
-<$tagroot>
+<$tagroot $attributeversion='$version'>
 <$tagmessagebody>Brief: $brief
 
 $user: $comment
@@ -130,7 +133,9 @@ Lint ($lintoption): $lint</$tagmessagebody>
         tagjirakey=XMLTAGJIRAKEY,
         taglint=XMLTAGLINT,
         taghistory=XMLTAGHISTORY,
+        attributeversion=XMLATTRIBUTEVERSION,
         attributeoption=XMLATTRIBUTEOPTION,
+        version=CONFIGFILEVERSION,
         brief='$brief',
         user='$user',
         comment='$comment',
@@ -157,6 +162,12 @@ class SvnStartCommitHelperValidator(object):
                 tk.messagebox.showerror(CommitHelperConstants.ERROR, CommitHelperConstants.MSGOPTIONS % name)
                 break
         return result
+
+    def validVersion(self, dom):
+        root = dom.getElementsByTagName(CommitHelperConstants.XMLTAGCONFIG)[0]
+        version = root.getAttribute(CommitHelperConstants.XMLATTRIBUTEVERSION)
+        rc = CommitHelperConstants.CONFIGFILEVERSION==version
+        return rc
 
 class SvnStartCommitHelperView(tk.Tk):
     OPTIONSRISK = [
@@ -328,7 +339,9 @@ class SvnStartCommitHelperView(tk.Tk):
 class SvnStartCommitHelperModel(object):
 
     def __init__(self):
-        pass
+        self.validator = SvnStartCommitHelperValidator()
+        self.configFileInvalid = False
+        self.dom = None
 
     def getText(self, nodelist):
         rc = []
@@ -380,6 +393,10 @@ class SvnStartCommitHelperModel(object):
                         if 0 < size:
                             try:
                                 rc = dom.parse(file)
+                                if not self.validator.validVersion(rc):
+                                    tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                                        CommitHelperConstants.MSGCONFIGVERSIONMISMATCH % configFile)
+                                    rc = None
                             except IOError:
                                 tk.messagebox.showerror(CommitHelperConstants.ERROR,
                                     CommitHelperConstants.MSGPARSEERROR)
@@ -402,15 +419,21 @@ class SvnStartCommitHelperModel(object):
         return rc
 
     def getDom(self):
-        rc = None
-        internalDom = dom.parseString(CommitHelperConstants.DEFAULTCONFIG)
-        if CommitHelperConstants.AVOIDCONFIGFILE:
-            rc = internalDom
-        else:
-            rc = self.getDomFromFile()
-            if None == rc:
+        rc = self.dom
+        if None == self.dom:
+            internalDom = dom.parseString(CommitHelperConstants.DEFAULTCONFIG)
+            if CommitHelperConstants.AVOIDCONFIGFILE:
                 rc = internalDom
+            else:
+                rc = self.getDomFromFile()
+                if None == rc:
+                    self.configFileInvalid = True
+                    rc = internalDom
+            self.dom = rc
         return rc
+
+    def invalidConfigFileVersion(self):
+        return self.configFileInvalid
 
     def getTemplates(self):
         rc = []
@@ -448,7 +471,8 @@ class SvnStartCommitHelperController(object):
     def checkExit(self):
         if self.validator.areOptionsSelected():
             self.writeSvnCommitMessage()
-            self.updateHistory()
+            if not self.model.invalidConfigFileVersion():
+                self.updateHistory()
             self.tearDown()
 
     def getTemplate(self):
