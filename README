@@ -53,7 +53,10 @@ valid locations.
 Migrating from previous version
 -------------------------------
 
-If migrating from previous versions then please be aware that the format of the messagebody template in .svnsch/svnsch.conf might have changed. In this case please backup your configuration file first. Then you might need to remove or manually modify the configuration file. 
+If migrating from previous versions then please be aware that the format of
+the messagebody template in .svnsch/svnsch.conf might have changed.
+In this case please backup your configuration file first.
+Then you might need to remove or manually modify the configuration file. 
 
 External links
 --------------
