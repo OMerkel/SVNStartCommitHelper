@@ -65,8 +65,9 @@ class CommitHelperConstants(object):
     XMLTAGTEMPLATE = 'template'
     XMLTAGBRIEF = 'brief'
     XMLTAGCOMMENT = 'comment'
-    XMLTAGFINDINGS = 'findings'
+    XMLTAGINITIALFINDINGS = 'initialfindings'
     XMLTAGREVIEWERS = 'reviewers'
+    XMLTAGREVIEWFINDINGS = 'reviewfindings'
     XMLTAGRISK = 'risk'
     XMLTAGJIRAKEY = 'jirakey'
     XMLTAGLINT = 'lint'
@@ -79,9 +80,11 @@ class CommitHelperConstants(object):
 
 $user: $comment
 
-Findings: $findings
+Initial findings: $initialfindings
 
 Reviewer(s): $reviewers
+
+Findings in review: $reviewfindings
 
 Risk: $riskoption
 
@@ -92,8 +95,9 @@ Lint ($lintoption): $lint</$tagmessagebody>
 <$tagtemplate>
 <$tagbrief>Weekly update of list of open questions.</$tagbrief>
 <$tagcomment>Updated the LOQ with information from weekly status telephone conference.</$tagcomment>
-<$tagfindings>Spread sheet is outdated.</$tagfindings>
+<$taginitialfindings>Spread sheet is outdated.</$taginitialfindings>
 <$tagreviewers>Matt</$tagreviewers>
+<$tagreviewfindings>Due date on action item 17 still missing.</$tagreviewfindings>
 <$tagrisk $attributeoption="Low" />
 <$tagjirakey>PAN-176</$tagjirakey>
 <$taglint $attributeoption="NA">Not applicable.</$taglint>
@@ -101,8 +105,9 @@ Lint ($lintoption): $lint</$tagmessagebody>
 <$tagtemplate>
 <$tagbrief>master.xml update.</$tagbrief>
 <$tagcomment>Added new IDs in master.xml.</$tagcomment>
-<$tagfindings>Message IDs missing since interface changed.</$tagfindings>
+<$taginitialfindings>Message IDs missing since interface changed.</$taginitialfindings>
 <$tagreviewers>Hank</$tagreviewers>
+<$tagreviewfindings>None</$tagreviewfindings>
 <$tagrisk $attributeoption="Medium" />
 <$tagjirakey>PAN-177</$tagjirakey>
 <$taglint $attributeoption="NA">Not applicable.</$taglint>
@@ -118,8 +123,9 @@ Lint ($lintoption): $lint</$tagmessagebody>
         tagtemplate=XMLTAGTEMPLATE,
         tagbrief=XMLTAGBRIEF,
         tagcomment=XMLTAGCOMMENT,
-        tagfindings=XMLTAGFINDINGS,
+        taginitialfindings=XMLTAGINITIALFINDINGS,
         tagreviewers=XMLTAGREVIEWERS,
+        tagreviewfindings=XMLTAGREVIEWFINDINGS,
         tagrisk=XMLTAGRISK,
         tagjirakey=XMLTAGJIRAKEY,
         taglint=XMLTAGLINT,
@@ -128,8 +134,9 @@ Lint ($lintoption): $lint</$tagmessagebody>
         brief='$brief',
         user='$user',
         comment='$comment',
-        findings='$findings',
+        initialfindings='$initialfindings',
         reviewers='$reviewers',
+        reviewfindings='$reviewfindings',
         riskoption='$riskoption',
         jirakey='$jirakey',
         lintoption='$lintoption',
@@ -175,60 +182,73 @@ class SvnStartCommitHelperView(tk.Tk):
         self.minsize(300,50)
 
         descriptionFrame = tk.Frame(self, bd=1, relief=tk.SUNKEN)
-        descriptionFrame.grid(row=0, column=0, columnspan=3, rowspan=10,
-            padx=2, pady=2, sticky=tk.N+tk.E+tk.S+tk.W)
+        descriptionFrame.grid(row=0, column=0, padx=2, pady=2,
+            sticky=tk.N+tk.E+tk.S+tk.W)
+        reviewFrame = tk.Frame(self, bd=1, relief=tk.SUNKEN)
+        reviewFrame.grid(row=10, column=0, padx=2, pady=2,
+            sticky=tk.N+tk.E+tk.S+tk.W)
+        lowerFrame = tk.Frame(self, bd=1, relief=tk.SUNKEN)
+        lowerFrame.grid(row=20, column=0, padx=2, pady=2,
+            sticky=tk.N+tk.E+tk.S+tk.W)
+        commandFrame = tk.Frame(self, bd=1, relief=tk.SUNKEN)
+        commandFrame.grid(row=0, column=1, rowspan=90, padx=2, pady=2,
+            sticky=tk.N+tk.E+tk.S+tk.W)
+        
         tk.Label(descriptionFrame, text='Brief').grid(row=0, sticky=tk.E)
         tk.Label(descriptionFrame, text='Comment').grid(row=5, sticky=tk.E)
-        tk.Label(descriptionFrame, text='Findings').grid(row=10, sticky=tk.E)
-        tk.Label(self, text='Reviewer(s)').grid(row=15, sticky=tk.E)
-        tk.Label(self, text='Risk').grid(row=20, sticky=tk.E)
-        tk.Label(self, text='Jira key is').grid(row=25, sticky=tk.E)
-        tk.Label(self, text='Lint').grid(row=30, sticky=tk.E)
+        tk.Label(descriptionFrame, text='Initial\nfindings').grid(row=10, sticky=tk.E)
+        tk.Label(reviewFrame, text='Reviewer(s)').grid(row=0, sticky=tk.E)
+        tk.Label(reviewFrame, text='Findings\nin review').grid(row=5, sticky=tk.E)
+        tk.Label(lowerFrame, text='Risk').grid(row=0, sticky=tk.E)
+        tk.Label(lowerFrame, text='Jira key is').grid(row=5, sticky=tk.E)
+        tk.Label(lowerFrame, text='Lint').grid(row=10, sticky=tk.E)
 
         self.briefVar = tk.StringVar(self)
-        self.briefText = tk.Entry(descriptionFrame, width=69, textvariable=self.briefVar)
+        self.briefText = tk.Entry(descriptionFrame, textvariable=self.briefVar)
         self.briefText.grid(row=0, column=1, columnspan=2, sticky=tk.W+tk.E)
-
-        self.commentText = tk.Text(descriptionFrame,
-            width=69, height=5, wrap=tk.WORD)
-        self.commentText.grid(row=5, column=1)
+        self.commentText = tk.Text(descriptionFrame, height=5, wrap=tk.WORD)
+        self.commentText.grid(row=5, column=1, sticky=tk.W+tk.E)
         self.commentScrollbar = tk.Scrollbar(descriptionFrame)
         self.commentScrollbar.grid(row=5, column=2, sticky=tk.N+tk.S)
         self.commentScrollbar.config(command=self.commentText.yview)
         self.commentText.config(yscrollcommand=self.commentScrollbar.set)
-        self.findingsText = tk.Text(descriptionFrame, width=69, height=5, wrap=tk.WORD)
-        self.findingsText.grid(row=10, column=1)
+        self.initialFindingsText = tk.Text(descriptionFrame, height=5, wrap=tk.WORD)
+        self.initialFindingsText.grid(row=10, column=1, sticky=tk.W+tk.E)
         self.findingsScrollbar = tk.Scrollbar(descriptionFrame)
         self.findingsScrollbar.grid(row=10, column=2, sticky=tk.N+tk.S)
-        self.findingsScrollbar.config(command=self.findingsText.yview)
-        self.findingsText.config(yscrollcommand=self.findingsScrollbar.set)
+        self.findingsScrollbar.config(command=self.initialFindingsText.yview)
+        self.initialFindingsText.config(yscrollcommand=self.findingsScrollbar.set)
 
         self.reviewersVar = tk.StringVar(self)
-        self.reviewersText = tk.Entry(self, width=69, textvariable=self.reviewersVar)
-        self.reviewersText.grid(row=15, column=1, columnspan=3, sticky=tk.W+tk.E)
+        self.reviewersText = tk.Entry(reviewFrame, textvariable=self.reviewersVar)
+        self.reviewersText.grid(row=0, column=1, columnspan=2, sticky=tk.W+tk.E)
+        self.reviewFindingsText = tk.Text(reviewFrame, height=5, wrap=tk.WORD)
+        self.reviewFindingsText.grid(row=5, column=1)
+        self.reviewFindingsScrollbar = tk.Scrollbar(reviewFrame)
+        self.reviewFindingsScrollbar.grid(row=5, column=2, sticky=tk.N+tk.S)
+        self.reviewFindingsScrollbar.config(command=self.reviewFindingsText.yview)
+        self.reviewFindingsText.config(yscrollcommand=self.reviewFindingsScrollbar.set)
+
         self.riskVar = tk.StringVar(self)
         self.riskVar.set(CommitHelperConstants.NOSELECTION)
-        tk.OptionMenu(self, self.riskVar, *self.OPTIONSRISK).grid(row=20, column=1)
+        tk.OptionMenu(lowerFrame, self.riskVar, *self.OPTIONSRISK).grid(row=0, column=1)
         self.jiraVar = tk.StringVar(self)
-        self.jiraText = tk.Entry(self, width=16, textvariable=self.jiraVar)
-        self.jiraText.grid(row=25, column=1)
+        self.jiraText = tk.Entry(lowerFrame, textvariable=self.jiraVar)
+        self.jiraText.grid(row=5, column=1)
         self.lintVar = tk.StringVar(self)
         self.lintVar.set(CommitHelperConstants.NOSELECTION)
-        tk.OptionMenu(self, self.lintVar, *self.OPTIONSLINT).grid(row=30, column=1)
+        tk.OptionMenu(lowerFrame, self.lintVar, *self.OPTIONSLINT).grid(row=10, column=1)
         self.lintTextVar = tk.StringVar(self)
-        self.lintText = tk.Entry(self, width=50, textvariable=self.lintTextVar)
-        self.lintText.grid(row=30, column=2, sticky=tk.W+tk.E)
+        self.lintText = tk.Entry(lowerFrame, width=75, textvariable=self.lintTextVar)
+        self.lintText.grid(row=10, column=2, sticky=tk.W+tk.E)
 
-        templateButton = tk.Button(self, text="Template...", command=self.templateCallback)
-        templateButton.grid(row=0, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S,
-            padx=5, pady=5)
+        templateButton = tk.Button(commandFrame, text="Template...", command=self.templateCallback)
+        templateButton.grid(row=0, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
         if not CommitHelperConstants.AVOIDCONFIGFILE:
-            historyButton = tk.Button(self, text="History...", command=self.historyCallback)
-            historyButton.grid(row=5, column=90, rowspan=5, sticky=tk.W+tk.E+tk.N+tk.S,
-                padx=5, pady=5)
-        okButton = tk.Button(self, text="OK", command=self.okCallback)
-        okButton.grid(row=10, column=90, rowspan=25, sticky=tk.W+tk.E+tk.N+tk.S,
-            padx=5, pady=5)
+            historyButton = tk.Button(commandFrame, text="History...", command=self.historyCallback)
+            historyButton.grid(row=5, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
+        okButton = tk.Button(commandFrame, text="OK", command=self.okCallback)
+        okButton.grid(row=10, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
         self.protocol('WM_DELETE_WINDOW', self.okCallback)
 
     def getBriefText(self):
@@ -237,11 +257,14 @@ class SvnStartCommitHelperView(tk.Tk):
     def getCommentText(self):
         return self.commentText.get('1.0', tk.END).strip()
 
-    def getFindingsText(self):
-        return self.findingsText.get('1.0', tk.END).strip()
+    def getInitialFindingsText(self):
+        return self.initialFindingsText.get('1.0', tk.END).strip()
 
     def getReviewersText(self):
         return self.reviewersText.get().strip()
+
+    def getReviewFindingsText(self):
+        return self.reviewFindingsText.get('1.0', tk.END).strip()
 
     def getRiskOption(self):
         return self.riskVar.get()
@@ -292,13 +315,15 @@ class SvnStartCommitHelperView(tk.Tk):
         self.briefVar.set(entry[0])
         self.commentText.delete('1.0', tk.END)
         self.commentText.insert(tk.END, entry[1])
-        self.findingsText.delete('1.0', tk.END)
-        self.findingsText.insert(tk.END, entry[2])
+        self.initialFindingsText.delete('1.0', tk.END)
+        self.initialFindingsText.insert(tk.END, entry[2])
         self.reviewersVar.set(entry[3])
-        self.riskVar.set(entry[4])
-        self.jiraVar.set(entry[5])
-        self.lintVar.set(entry[6])
-        self.lintTextVar.set(entry[7])
+        self.reviewFindingsText.delete('1.0', tk.END)
+        self.reviewFindingsText.insert(tk.END, entry[4])
+        self.riskVar.set(entry[5])
+        self.jiraVar.set(entry[6])
+        self.lintVar.set(entry[7])
+        self.lintTextVar.set(entry[8])
 
 class SvnStartCommitHelperModel(object):
 
@@ -321,14 +346,15 @@ class SvnStartCommitHelperModel(object):
     def getItem(self, node):
             brief = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGBRIEF)[0].childNodes)
             comment = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGCOMMENT)[0].childNodes)
-            findings = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGFINDINGS)[0].childNodes)
+            initialFindings = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGINITIALFINDINGS)[0].childNodes)
             reviewers = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGREVIEWERS)[0].childNodes)
+            reviewFindings = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGREVIEWFINDINGS)[0].childNodes)
             risk = node.getElementsByTagName(CommitHelperConstants.XMLTAGRISK)[0].getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
             jirakey = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGJIRAKEY)[0].childNodes)
             element = node.getElementsByTagName(CommitHelperConstants.XMLTAGLINT)[0]
             lintOption = element.getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
             lintText = self.getText(element.childNodes)
-            return ( brief, comment, findings, reviewers,
+            return ( brief, comment, initialFindings, reviewers, reviewFindings,
                 risk, jirakey, lintOption, lintText )
 
     def getDomFromFile(self):
@@ -437,8 +463,9 @@ class SvnStartCommitHelperController(object):
         self.view.updateFields(entry)
 
     def getMessage(self):
-        return ( self.view.getBriefText(), os.getlogin(), self.view.getCommentText(),
-            self.view.getFindingsText(), self.view.getReviewersText(),
+        return ( self.view.getBriefText(), os.getlogin(),
+            self.view.getCommentText(), self.view.getInitialFindingsText(),
+            self.view.getReviewersText(), self.view.getReviewFindingsText(),
             self.view.getRiskOption(), self.view.getJiraText(),
             self.view.getLintOption(), self.view.getLintText() )
 
@@ -458,27 +485,31 @@ class SvnStartCommitHelperController(object):
         briefText = dom.createTextNode(message[0])
         comment = dom.createElement(CommitHelperConstants.XMLTAGCOMMENT)
         commentText = dom.createTextNode(message[1])
-        findings = dom.createElement(CommitHelperConstants.XMLTAGFINDINGS)
-        findingsText = dom.createTextNode(message[2])
+        initialFindings = dom.createElement(CommitHelperConstants.XMLTAGINITIALFINDINGS)
+        initialFindingsText = dom.createTextNode(message[2])
         reviewers = dom.createElement(CommitHelperConstants.XMLTAGREVIEWERS)
         reviewersText = dom.createTextNode(message[3])
+        reviewFindings = dom.createElement(CommitHelperConstants.XMLTAGREVIEWFINDINGS)
+        reviewFindingsText = dom.createTextNode(message[4])
         risk = dom.createElement(CommitHelperConstants.XMLTAGRISK)
-        risk.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[4])
+        risk.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[5])
         jirakey = dom.createElement(CommitHelperConstants.XMLTAGJIRAKEY)
-        jirakeyText = dom.createTextNode(message[5])
+        jirakeyText = dom.createTextNode(message[6])
         lint = dom.createElement(CommitHelperConstants.XMLTAGLINT)
-        lint.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[6])
-        lintText = dom.createTextNode(message[7])
+        lint.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[7])
+        lintText = dom.createTextNode(message[8])
         brief.appendChild(briefText)
         comment.appendChild(commentText)
-        findings.appendChild(findingsText)
+        initialFindings.appendChild(initialFindingsText)
         reviewers.appendChild(reviewersText)
+        reviewFindings.appendChild(reviewFindingsText)
         jirakey.appendChild(jirakeyText)
         lint.appendChild(lintText)
         item.appendChild(brief)
         item.appendChild(comment)
-        item.appendChild(findings)
+        item.appendChild(initialFindings)
         item.appendChild(reviewers)
+        item.appendChild(reviewFindings)
         item.appendChild(risk)
         item.appendChild(jirakey)
         item.appendChild(lint)
@@ -516,12 +547,13 @@ class SvnStartCommitHelperController(object):
             brief=message[0],
             user=message[1],
             comment=message[2],
-            findings=message[3],
+            initialfindings=message[3],
             reviewers=message[4],
-            riskoption=message[5],
-            jirakey=message[6],
-            lintoption=message[7],
-            lint=message[8])
+            reviewfindings=message[5],
+            riskoption=message[6],
+            jirakey=message[7],
+            lintoption=message[8],
+            lint=message[9])
         if 4==len(self.argv):
             open(tk.sys.argv[2], mode='w').write(messageText)
         else:
