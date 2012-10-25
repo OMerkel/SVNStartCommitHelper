@@ -87,7 +87,7 @@ Initial findings: $initialfindings
 
 Reviewer(s): $reviewers
 
-Findings in review: $reviewfindings
+Findings after reviewing: $reviewfindings
 
 Risk: $riskoption
 
@@ -209,7 +209,7 @@ class SvnStartCommitHelperView(tk.Tk):
         tk.Label(descriptionFrame, text='Comment').grid(row=5, sticky=tk.E)
         tk.Label(descriptionFrame, text='Initial\nfindings').grid(row=10, sticky=tk.E)
         tk.Label(reviewFrame, text='Reviewer(s)').grid(row=0, sticky=tk.E)
-        tk.Label(reviewFrame, text='Findings\nin review').grid(row=5, sticky=tk.E)
+        tk.Label(reviewFrame, text='Findings\nafter\nreviewing').grid(row=5, sticky=tk.E)
         tk.Label(lowerFrame, text='Risk').grid(row=0, sticky=tk.E)
         tk.Label(lowerFrame, text='Jira key is').grid(row=5, sticky=tk.E)
         tk.Label(lowerFrame, text='Lint').grid(row=10, sticky=tk.E)
