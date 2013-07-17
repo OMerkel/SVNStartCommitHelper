@@ -44,6 +44,7 @@ from string import Template
 class CommitHelperConstants(object):
     AVOIDCONFIGFILE = False
     CONFIGFILEVERSION = '1.0'
+    HISTORYREVERSECHRONOLOGICAL = True
     ERROR = 'Error'
     INFO = 'Information'
     MSGOPTIONS = 'Please select an option for %s!'
@@ -315,7 +316,8 @@ class SvnStartCommitHelperView(tk.Tk):
             okButton.grid(row=0, column=90, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
 
             for entry in entries:
-                self.tree.insert('', tk.END, values=entry[0:3])
+                pos = 0 if CommitHelperConstants.HISTORYREVERSECHRONOLOGICAL else tk.END
+                self.tree.insert('', pos, values=entry[0:3])
             self.tree.selection_set(self.tree.identify_row(0))
 
     def listSelected(self):
