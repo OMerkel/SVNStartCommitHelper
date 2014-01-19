@@ -1,7 +1,7 @@
 """
 The MIT License
 
-Copyright (c) 2012 Oliver Merkel <Merkel.Oliver@web.de>
+Copyright (c) 2012, 2013, 2014 Oliver Merkel <Merkel.Oliver@web.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,10 +33,8 @@ THE SOFTWARE.
 # any other feedback to the project. You are welcome!
 #
 
-import tkinter.messagebox
 import tkinter as tk
 import tkinter.ttk as ttk
-import os
 import os.path
 import xml.dom.minidom as dom
 from string import Template
@@ -73,7 +71,7 @@ class CommitHelperConstants(object):
     XMLTAGREVIEWFINDINGS = 'reviewfindings'
     XMLTAGRISK = 'risk'
     XMLTAGJIRAKEY = 'jirakey'
-    XMLTAGLINT = 'lint'
+    XMLTAGSTATICCODEANALYSIS = 'staticcodeanalysis'
     XMLTAGHISTORY = 'history'
     XMLTAGITEM = 'item'
     XMLATTRIBUTEVERSION = 'version'
@@ -94,7 +92,7 @@ Risk: $riskoption
 
 Jira key is $jirakey
 
-Lint ($lintoption): $lint</$tagmessagebody>
+Static Code Analysis ($staticcodeanalysisoption): $staticcodeanalysis</$tagmessagebody>
 <$tagtemplates>
 <$tagtemplate>
 <$tagbrief>Weekly update of list of open questions.</$tagbrief>
@@ -104,7 +102,7 @@ Lint ($lintoption): $lint</$tagmessagebody>
 <$tagreviewfindings>Due date on action item 17 still missing.</$tagreviewfindings>
 <$tagrisk $attributeoption="Low" />
 <$tagjirakey>PAN-176</$tagjirakey>
-<$taglint $attributeoption="NA">Not applicable.</$taglint>
+<$tagstaticcodeanalysis $attributeoption="NA">Not applicable.</$tagstaticcodeanalysis>
 </$tagtemplate>
 <$tagtemplate>
 <$tagbrief>master.xml update.</$tagbrief>
@@ -114,7 +112,7 @@ Lint ($lintoption): $lint</$tagmessagebody>
 <$tagreviewfindings>None</$tagreviewfindings>
 <$tagrisk $attributeoption="Medium" />
 <$tagjirakey>PAN-177</$tagjirakey>
-<$taglint $attributeoption="NA">Not applicable.</$taglint>
+<$tagstaticcodeanalysis $attributeoption="NA">Not applicable.</$tagstaticcodeanalysis>
 </$tagtemplate>
 </$tagtemplates>
 <$taghistory/>
@@ -132,7 +130,7 @@ Lint ($lintoption): $lint</$tagmessagebody>
         tagreviewfindings=XMLTAGREVIEWFINDINGS,
         tagrisk=XMLTAGRISK,
         tagjirakey=XMLTAGJIRAKEY,
-        taglint=XMLTAGLINT,
+        tagstaticcodeanalysis=XMLTAGSTATICCODEANALYSIS,
         taghistory=XMLTAGHISTORY,
         attributeversion=XMLATTRIBUTEVERSION,
         attributeoption=XMLATTRIBUTEOPTION,
@@ -145,8 +143,8 @@ Lint ($lintoption): $lint</$tagmessagebody>
         reviewfindings='$reviewfindings',
         riskoption='$riskoption',
         jirakey='$jirakey',
-        lintoption='$lintoption',
-        lint='$lint'
+        staticcodeanalysisoption='$staticcodeanalysisoption',
+        staticcodeanalysis='$staticcodeanalysis'
     )
 
 class SvnStartCommitHelperValidator(object):
@@ -177,7 +175,7 @@ class SvnStartCommitHelperView(tk.Tk):
         'Medium',
         'High'
     ]
-    OPTIONSLINT = [
+    OPTIONSSTATICCODEANALYSIS = [
         CommitHelperConstants.NOSELECTION,
         'Decrease',
         'Equal',
@@ -213,7 +211,7 @@ class SvnStartCommitHelperView(tk.Tk):
         tk.Label(reviewFrame, text='Findings\nafter\nreviewing').grid(row=5, sticky=tk.E)
         tk.Label(lowerFrame, text='Risk').grid(row=0, sticky=tk.E)
         tk.Label(lowerFrame, text='Jira key is').grid(row=5, sticky=tk.E)
-        tk.Label(lowerFrame, text='Lint').grid(row=10, sticky=tk.E)
+        tk.Label(lowerFrame, text='Static Code Analysis').grid(row=10, sticky=tk.E)
 
         self.briefVar = tk.StringVar(self)
         self.briefText = tk.Entry(descriptionFrame, textvariable=self.briefVar)
@@ -247,12 +245,14 @@ class SvnStartCommitHelperView(tk.Tk):
         self.jiraVar = tk.StringVar(self)
         self.jiraText = tk.Entry(lowerFrame, textvariable=self.jiraVar)
         self.jiraText.grid(row=5, column=1)
-        self.lintVar = tk.StringVar(self)
-        self.lintVar.set(CommitHelperConstants.NOSELECTION)
-        tk.OptionMenu(lowerFrame, self.lintVar, *self.OPTIONSLINT).grid(row=10, column=1)
-        self.lintTextVar = tk.StringVar(self)
-        self.lintText = tk.Entry(lowerFrame, width=75, textvariable=self.lintTextVar)
-        self.lintText.grid(row=10, column=2, sticky=tk.W+tk.E)
+        self.staticCodeAnalysisVar = tk.StringVar(self)
+        self.staticCodeAnalysisVar.set(CommitHelperConstants.NOSELECTION)
+        tk.OptionMenu(lowerFrame, self.staticCodeAnalysisVar,
+            *self.OPTIONSSTATICCODEANALYSIS).grid(row=10, column=1)
+        self.staticCodeAnalysisTextVar = tk.StringVar(self)
+        self.staticCodeAnalysisText = tk.Entry(lowerFrame, width=75,
+            textvariable=self.staticCodeAnalysisTextVar)
+        self.staticCodeAnalysisText.grid(row=10, column=2, sticky=tk.W+tk.E)
 
         templateButton = tk.Button(commandFrame, text="Template...", command=self.templateCallback)
         templateButton.grid(row=0, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
@@ -284,11 +284,11 @@ class SvnStartCommitHelperView(tk.Tk):
     def getJiraText(self):
         return self.jiraText.get().strip()
 
-    def getLintOption(self):
-        return self.lintVar.get()
+    def getStaticCodeAnalysisOption(self):
+        return self.staticCodeAnalysisVar.get()
 
-    def getLintText(self):
-        return self.lintText.get().strip()
+    def getStaticCodeAnalysisText(self):
+        return self.staticCodeAnalysisText.get().strip()
 
     def selectFrom(self, entries, callback):
         treeColumns = ("Brief", "Comment", "Findings")
@@ -322,6 +322,8 @@ class SvnStartCommitHelperView(tk.Tk):
 
     def listSelected(self):
         index = self.tree.index(self.tree.selection())
+        if CommitHelperConstants.HISTORYREVERSECHRONOLOGICAL:
+            index = len(self.selectEntries) - 1 - index
         self.listCallback(self.selectEntries[index])
 
     def updateFields(self, entry):
@@ -335,8 +337,8 @@ class SvnStartCommitHelperView(tk.Tk):
         self.reviewFindingsText.insert(tk.END, entry[4])
         self.riskVar.set(entry[5])
         self.jiraVar.set(entry[6])
-        self.lintVar.set(entry[7])
-        self.lintTextVar.set(entry[8])
+        self.staticCodeAnalysisVar.set(entry[7])
+        self.staticCodeAnalysisTextVar.set(entry[8])
 
 class SvnStartCommitHelperModel(object):
 
@@ -366,11 +368,11 @@ class SvnStartCommitHelperModel(object):
             reviewFindings = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGREVIEWFINDINGS)[0].childNodes)
             risk = node.getElementsByTagName(CommitHelperConstants.XMLTAGRISK)[0].getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
             jirakey = self.getText(node.getElementsByTagName(CommitHelperConstants.XMLTAGJIRAKEY)[0].childNodes)
-            element = node.getElementsByTagName(CommitHelperConstants.XMLTAGLINT)[0]
-            lintOption = element.getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
-            lintText = self.getText(element.childNodes)
+            element = node.getElementsByTagName(CommitHelperConstants.XMLTAGSTATICCODEANALYSIS)[0]
+            staticCodeAnalysisOption = element.getAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION)
+            staticCodeAnalysisText = self.getText(element.childNodes)
             return ( brief, comment, initialFindings, reviewers, reviewFindings,
-                risk, jirakey, lintOption, lintText )
+                risk, jirakey, staticCodeAnalysisOption, staticCodeAnalysisText )
 
     def getDomFromFile(self):
         rc = None
@@ -466,8 +468,10 @@ class SvnStartCommitHelperController(object):
         self.view = SvnStartCommitHelperView(self.getTemplate, self.getHistory,
             self.checkExit)
         self.validator = SvnStartCommitHelperValidator()
-        self.validator.registerGetOptionCallback(self.view.getRiskOption, 'the risk level correlated to the commit')
-        self.validator.registerGetOptionCallback(self.view.getLintOption, 'the Lint run')
+        self.validator.registerGetOptionCallback(self.view.getRiskOption,
+            'the risk level correlated to the commit')
+        self.validator.registerGetOptionCallback(self.view.getStaticCodeAnalysisOption,
+            'the Static Code Analysis run')
         self.view.mainloop()
 
     def checkExit(self):
@@ -493,7 +497,7 @@ class SvnStartCommitHelperController(object):
             self.view.getCommentText(), self.view.getInitialFindingsText(),
             self.view.getReviewersText(), self.view.getReviewFindingsText(),
             self.view.getRiskOption(), self.view.getJiraText(),
-            self.view.getLintOption(), self.view.getLintText() )
+            self.view.getStaticCodeAnalysisOption(), self.view.getStaticCodeAnalysisText() )
 
     def sameInHistory(self, message, items):
         rc = False
@@ -521,16 +525,16 @@ class SvnStartCommitHelperController(object):
         risk.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[5])
         jirakey = dom.createElement(CommitHelperConstants.XMLTAGJIRAKEY)
         jirakeyText = dom.createTextNode(message[6])
-        lint = dom.createElement(CommitHelperConstants.XMLTAGLINT)
-        lint.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[7])
-        lintText = dom.createTextNode(message[8])
+        staticCodeAnalysis = dom.createElement(CommitHelperConstants.XMLTAGSTATICCODEANALYSIS)
+        staticCodeAnalysis.setAttribute(CommitHelperConstants.XMLATTRIBUTEOPTION, message[7])
+        staticCodeAnalysisText = dom.createTextNode(message[8])
         brief.appendChild(briefText)
         comment.appendChild(commentText)
         initialFindings.appendChild(initialFindingsText)
         reviewers.appendChild(reviewersText)
         reviewFindings.appendChild(reviewFindingsText)
         jirakey.appendChild(jirakeyText)
-        lint.appendChild(lintText)
+        staticCodeAnalysis.appendChild(staticCodeAnalysisText)
         item.appendChild(brief)
         item.appendChild(comment)
         item.appendChild(initialFindings)
@@ -538,7 +542,7 @@ class SvnStartCommitHelperController(object):
         item.appendChild(reviewFindings)
         item.appendChild(risk)
         item.appendChild(jirakey)
-        item.appendChild(lint)
+        item.appendChild(staticCodeAnalysis)
         historyElement.appendChild(item)
         items = historyElement.getElementsByTagName(CommitHelperConstants.XMLTAGITEM)
         while len(items) > CommitHelperConstants.MAXHISTORYSIZE:
@@ -578,8 +582,8 @@ class SvnStartCommitHelperController(object):
             reviewfindings=message[5],
             riskoption=message[6],
             jirakey=message[7],
-            lintoption=message[8],
-            lint=message[9])
+            staticcodeanalysisoption=message[8],
+            staticcodeanalysis=message[9])
         if 4==len(self.argv):
             open(tk.sys.argv[2], mode='w').write(messageText)
         else:
