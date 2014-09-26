@@ -34,6 +34,7 @@ THE SOFTWARE.
 #
 
 import tkinter as tk
+import tkinter.messagebox as messagebox
 import tkinter.ttk as ttk
 import os.path
 import xml.dom.minidom as dom
@@ -158,7 +159,7 @@ class SvnStartCommitHelperValidator(object):
         for callback, name in self.optionCallbacks:
             result = result and not (callback() == CommitHelperConstants.NOSELECTION)
             if not result:
-                tk.messagebox.showerror(CommitHelperConstants.ERROR, CommitHelperConstants.MSGOPTIONS % name)
+                messagebox.showerror(CommitHelperConstants.ERROR, CommitHelperConstants.MSGOPTIONS % name)
                 break
         return result
 
@@ -381,7 +382,7 @@ class SvnStartCommitHelperModel(object):
         configFile = os.path.join(configPath, CommitHelperConstants.CONFIGFILE)
         if not configPath is None:
             if not os.path.exists(configPath):
-                tk.messagebox.showinfo(CommitHelperConstants.INFO,
+                messagebox.showinfo(CommitHelperConstants.INFO,
                     CommitHelperConstants.MSGMAKECONFIGPATH % configPath)
                 os.chdir(homePath)
                 os.mkdir(CommitHelperConstants.CONFIGDIR)
@@ -390,7 +391,7 @@ class SvnStartCommitHelperModel(object):
                     try:
                         file = open(configFile, 'r')
                     except IOError:
-                        tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                        messagebox.showerror(CommitHelperConstants.ERROR,
                             CommitHelperConstants.MSGFILESIZE % configFile)
                     else:
                         size = os.fstat(file.fileno()).st_size
@@ -398,23 +399,23 @@ class SvnStartCommitHelperModel(object):
                             try:
                                 rc = dom.parse(file)
                                 if not self.validator.validVersion(rc):
-                                    tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                                    messagebox.showerror(CommitHelperConstants.ERROR,
                                         CommitHelperConstants.MSGCONFIGVERSIONMISMATCH % configFile)
                                     rc = None
                             except IOError:
-                                tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                                messagebox.showerror(CommitHelperConstants.ERROR,
                                     CommitHelperConstants.MSGPARSEERROR)
                         else:
-                            tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                            messagebox.showerror(CommitHelperConstants.ERROR,
                                 CommitHelperConstants.MSGFILEEMPTY)
                         file.close()
                 else:
-                    tk.messagebox.showinfo(CommitHelperConstants.INFO,
+                    messagebox.showinfo(CommitHelperConstants.INFO,
                         CommitHelperConstants.MSGCREATECONFIGFILE % configFile)
                     try:
                         file = open(configFile, 'w')
                     except IOError:
-                        tk.messagebox.showerror(CommitHelperConstants.ERROR,
+                        messagebox.showerror(CommitHelperConstants.ERROR,
                             CommitHelperConstants.MSGCANTWRITECONFIG  % configFile)
                     else:
                         file.write(CommitHelperConstants.DEFAULTCONFIG)
@@ -456,7 +457,7 @@ class SvnStartCommitHelperModel(object):
             for item in items:
                 rc.append(self.getItem(item))
         else:
-            tk.messagebox.showinfo(CommitHelperConstants.INFO,
+            messagebox.showinfo(CommitHelperConstants.INFO,
                 CommitHelperConstants.MSGEMPTYHISTORY)
         return rc
 
@@ -557,7 +558,7 @@ class SvnStartCommitHelperController(object):
             config.flush()
             config.close()
         except IOError:
-            tk.messagebox.showerror(CommitHelperConstants.ERROR,
+            messagebox.showerror(CommitHelperConstants.ERROR,
                 CommitHelperConstants.MSGERRORWRITINGFILE % configFile)
 
     def updateHistory(self):
