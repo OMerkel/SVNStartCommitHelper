@@ -2,6 +2,7 @@ SVNStartCommitHelper
 ====================
 
 http://sf.net/projects/svnstartcommith
+https://github.com/OMerkel/SVNStartCommitHelper
 
 Professional environments focus on high development standards in Source Code
 Management. E.g. by usage of server side commit hooks to check for minimum
@@ -66,4 +67,4 @@ software for Microsoft Windows implemented as a Windows shell extension.
 * http://code.google.com/p/tortoisesvn/source/browse/ - TortoiseSVN source code.
 * http://flavio.castelli.name/2006/02/16/svn-commit-helper/ - Svn-commit is a
 command line utility for making rapid commit with subversion.
-* http://python.org/ - Python Programming Language – Official Website.
+* http://python.org/ - Python Programming Language â€“ Official Website.
