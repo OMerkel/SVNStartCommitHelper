@@ -1,8 +1,8 @@
 SVNStartCommitHelper
 ====================
 
-http://sf.net/projects/svnstartcommith
-https://github.com/OMerkel/SVNStartCommitHelper
+* http://sf.net/projects/svnstartcommith
+* https://github.com/OMerkel/SVNStartCommitHelper
 
 Professional environments focus on high development standards in Source Code
 Management. E.g. by usage of server side commit hooks to check for minimum
